@@ -64,20 +64,20 @@ module HassioCommunityAddons
     end
 
     # Checks/install required vagrant-triggers plugin
-    def require_triggers_plugin
-      return if ::Vagrant.has_plugin?('vagrant-triggers')
-
-      print "A required vagrant plugin is missing: vagrant-triggers\n"
-      raise ::Vagrant::Errors::VagrantError.new, 'Required plugin missing.' \
-        unless confirm 'Shall I go ahead an install it?', true
-
-      raise ::Vagrant::Errors::VagrantError.new, 'Installation of failed' \
-        unless system 'vagrant plugin install vagrant-triggers'
-
-      print "Restarting Vagrant to re-load plugin changes...\n"
-      system 'vagrant ' + ARGV.join(' ')
-      exit! $CHILD_STATUS.exitstatus
-    end
+    # def require_triggers_plugin
+    #   return if ::Vagrant.has_plugin?('vagrant-triggers')
+    #
+    #   print "A required vagrant plugin is missing: vagrant-triggers\n"
+    #   raise ::Vagrant::Errors::VagrantError.new, 'Required plugin missing.' \
+    #     unless confirm 'Shall I go ahead an install it?', true
+    #
+    #   raise ::Vagrant::Errors::VagrantError.new, 'Installation of failed' \
+    #     unless system 'vagrant plugin install vagrant-triggers'
+    #
+    #   print "Restarting Vagrant to re-load plugin changes...\n"
+    #   system 'vagrant ' + ARGV.join(' ')
+    #   exit! $CHILD_STATUS.exitstatus
+    # end
 
     # Configures generic Vagrant options
     #
@@ -145,14 +145,14 @@ module HassioCommunityAddons
     # @param [Vagrant::Config::V2::Root] machine Vagrant VM root config
     def machine_shares(machine)
       @config['shares'].each do |src, dst|
-        machine.vm.synced_folder src, dst, create: true, type: share_type
+        machine.vm.synced_folder src, dst, create: true
       end
     end
 
     # Determines the type of filesharing. SMB for windows, else NFS.
-    def share_type
-      RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/ ? 'smb' : 'nfs'
-    end
+    # def share_type
+    #   RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/ ? 'smb' : 'nfs'
+    # end
 
     # Configures a VM's provisioning
     #
@@ -168,17 +168,18 @@ module HassioCommunityAddons
     # @param [Vagrant::Config::V2::Root] machine Vagrant VM root config
     def machine_cleanup_on_destroy(machine)
       root_directory = File.dirname(__FILE__)
-      machine.trigger.after :destroy do
-        FileUtils.rm_rf(
+      machine.trigger.after :destroy do |trigger|
+        trigger.name = "HASSIO Pre-Destroy"
+        trigger.run_remote = { inline: "FileUtils.rm_rf(
           Dir.glob(File.join(root_directory, 'config/**'), File::FNM_DOTMATCH)
           .reject { |i| i =~ %r{(\/.|\/\.\.|\.gitkeep)$} }
-        )
+        )" }
       end
     end
 
     # Run this thing!
     def run
-      require_triggers_plugin
+    #  require_triggers_plugin
       ::Vagrant.configure(VAGRANT_API_VERSION) do |config|
         vagrant_config(config)
         machine(config, 'hassio')
